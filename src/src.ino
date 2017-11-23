@@ -291,6 +291,12 @@ void keys_scan() {
       }
     }
   } 
+
+  if (!digitalRead(ACCENT_PIN)) {
+    ratchet = true;
+  } else {
+    ratchet = false;
+  }
 }
 
 void pots_read() {
@@ -305,10 +311,11 @@ void pots_read() {
 }
 
 void note_on(uint8_t midi_note, uint8_t velocity, bool enabled) {
+
   // Override velocity if button on the synth is pressed
-  if(!digitalRead(ACCENT_PIN)) {
-    velocity = 127;
-  }
+  // if(!digitalRead(ACCENT_PIN)) {
+  //   velocity = 127;
+  // }
 
   note_is_playing = midi_note;
 

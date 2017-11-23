@@ -5,9 +5,11 @@
  Note timing is divided into 24 steps per quarter note
  */
 
+//#define PULSES_PER_QUARTER_NOTE 24
 #define PULSES_PER_QUARTER_NOTE 24
 #define PULSES_PER_EIGHT_NOTE   PULSES_PER_QUARTER_NOTE / 2
 const uint8_t SEQUENCER_NUM_STEPS = 8;
+const uint8_t RATCHET_NUM_STEPS = 2;
 
 //Initial sequencer values
 uint8_t step_note[] = { 1,0,6,9,0,4,0,5 };
@@ -18,6 +20,7 @@ void sequencer_init();
 void sequencer_restart();
 void sequencer_start();
 void sequencer_stop();
+void sequencer_ratchet_step();
 void sequencer_advance();
 void sequencer_tick_clock();
 void sequencer_reset();
@@ -27,7 +30,6 @@ int keyboard_get_highest_note();
 int keyboard_get_latest_note();
 void sequencer_align_clock();
 
-static void sequencer_advance_without_play();
 static void sequencer_trigger_note();
 static void sequencer_untrigger_note();
 bool sequencer_is_running = false;
@@ -41,6 +43,8 @@ uint32_t previous_note_on_time;
 uint32_t note_off_time;
 
 bool double_speed = false;
+bool ratchet = false;
+uint8_t ratchet_step = 0;
 
 void sequencer_init() {
   note_stack.Init();
@@ -106,30 +110,56 @@ void sequencer_toggle_start() {
 }
 
 void sequencer_tick_clock() {
-  uint8_t sequencer_divider = PULSES_PER_EIGHT_NOTE;
-  if(double_speed) {
-    sequencer_divider = PULSES_PER_EIGHT_NOTE / 2;
+
+  uint8_t sequencer_divider = PULSES_PER_QUARTER_NOTE;
+
+  if (double_speed) {
+    if (ratchet) {
+      sequencer_divider = sequencer_divider / (2 * RATCHET_NUM_STEPS);
+    }
+    else {
+      sequencer_divider = sequencer_divider / 2;
+    }
+  }
+  else if (ratchet) {
+    sequencer_divider = sequencer_divider / RATCHET_NUM_STEPS;
   }
 
-  if(!tempo_handler.is_clock_source_internal()) {
+  if (!tempo_handler.is_clock_source_internal()) {
     int potvalue = analogRead(TEMPO_POT);
-    if(potvalue < 127) {
+    if (potvalue < 127) {
       sequencer_divider /= 2;
     } else if(potvalue > 900) {
       sequencer_divider *= 2;
     }
   }
 
-  if(sequencer_is_running && (sequencer_clock % sequencer_divider)==0) {
-    sequencer_advance();
-  } 
+  if (sequencer_is_running && (sequencer_clock % sequencer_divider)==0) {
+    sequencer_ratchet_step();
+    sequencer_trigger_note();
+  }
+
   sequencer_clock++;
 }
 
-void sequencer_advance_without_play() {
+void sequencer_ratchet_step() {
+
+    if (ratchet) {
+      ratchet_step = (ratchet_step + 1) % RATCHET_NUM_STEPS;
+    }
+    else {
+      ratchet_step = 0;
+    }
+
+    if (ratchet_step == 0) {
+      sequencer_advance();
+    }
+}
+
+void sequencer_advance() {
   static uint8_t arpeggio_index = 0;
 
-  if(!note_is_done_playing) {
+  if (!note_is_done_playing) {
     sequencer_untrigger_note();
   }
   if (!next_step_is_random && !random_flag) {
@@ -143,12 +173,12 @@ void sequencer_advance_without_play() {
   // Sample keys
   uint8_t n = note_stack.size();
 
-  if(arpeggio_index >= n) {
+  if (arpeggio_index >= n) {
     arpeggio_index = 0;
   }
 
-  if(n > 0) {
-    if(!sequencer_is_running) {
+  if (n > 0) {
+    if (!sequencer_is_running) {
       step_note[current_step] = note_stack.most_recent_note().note;
     } else {
       step_note[current_step] = note_stack.sorted_note(arpeggio_index).note;
@@ -157,11 +187,6 @@ void sequencer_advance_without_play() {
     step_enable[current_step] = 1;
     step_velocity[current_step] = INITIAL_VELOCITY; 
   }
-}
-
-void sequencer_advance() {
-  sequencer_advance_without_play();
-  sequencer_trigger_note();
 }
 
 void sequencer_reset() {
@@ -207,13 +232,13 @@ void keyboard_to_note() {
   static uint8_t n = 255;
   static uint8_t s = 255;
 
-  if(!sequencer_is_running) {
+  if (!sequencer_is_running) {
     if(note_stack.size() != s) {
       s = note_stack.size();
       if(s > 0) {
         uint8_t k = note_stack.most_recent_note().note;
         if(k != n) {
-          sequencer_advance_without_play();
+          sequencer_advance();
           note_on(k+transpose, INITIAL_VELOCITY, true);
           n = k;
         }
