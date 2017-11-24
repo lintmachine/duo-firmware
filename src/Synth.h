@@ -184,6 +184,7 @@ void synth_update() {
   filter1.resonance(map(synth.resonance,0,1023,70,320)/100.0); // 0.7-3.2 range
 
   envelope1.release(((synth.release*synth.release) >> 11)+30);
+//  envelope2.attack(((synth.attack*synth.attack) >> 11)+30);
 
   if(!synth.crush) {
     bitcrusher1.sampleRate(HIGH_SAMPLE_RATE);

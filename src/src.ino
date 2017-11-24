@@ -27,6 +27,7 @@
 #include "TouchSlider.h"
 
 #define VERSION "1.0.0-rc.5"
+#define DEV_MODE 1
 
 const int MIDI_CHANNEL = 1;
 
@@ -85,6 +86,7 @@ typedef struct {
   int pulseWidth;
   int filter;
   int resonance;
+  int attack;
   int release;
   int amplitude;
   bool glide;
@@ -208,6 +210,13 @@ void midi_handle_realtime(uint8_t type) {
 
 // Scans the button_matrix and handles step enable and keys
 void keys_scan() {
+
+  if (!digitalRead(ACCENT_PIN)) {
+    ratchet = true;
+  } else {
+    ratchet = false;
+  }
+
   if(muxDigitalRead(DELAY_PIN)) {
     synth.delay = false;
     mixer_delay.gain(0, 0.0); // Delay input
@@ -301,18 +310,14 @@ void keys_scan() {
       }
     }
   } 
-
-  if (!digitalRead(ACCENT_PIN)) {
-    ratchet = true;
-  } else {
-    ratchet = false;
-  }
 }
 
 void pots_read() {
-  gate_length_msec = map(analogRead(GATE_POT),1023,0,10,200);
+
+  gate_length_msec = map(analogRead(POT_2),1023,0,10,1033);
   
   synth.detune = muxAnalogRead(OSC_DETUNE_POT);
+  synth.attack = gate_length_msec;
   synth.release = muxAnalogRead(AMP_ENV_POT);
   synth.filter = muxAnalogRead(FILTER_FREQ_POT);
   synth.amplitude = muxAnalogRead(AMP_POT);

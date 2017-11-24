@@ -37,7 +37,8 @@ bool note_is_done_playing = false;
 
 
 uint32_t next_step_time = 0;
-uint32_t gate_off_time = 0;
+//uint32_t gate_off_time = 0;
+uint32_t note_duration_msec;
 uint32_t note_on_time;
 uint32_t previous_note_on_time;
 uint32_t note_off_time;
@@ -127,11 +128,12 @@ void sequencer_tick_clock() {
 
   if (!tempo_handler.is_clock_source_internal()) {
     int potvalue = analogRead(TEMPO_POT);
-    if (potvalue < 127) {
+    if (potvalue < 512) {
       sequencer_divider /= 2;
-    } else if(potvalue > 900) {
-      sequencer_divider *= 2;
-    }
+    } 
+    // else if(potvalue > 900) {
+    //   sequencer_divider *= 2;
+    // }
   }
 
   if (sequencer_is_running && (sequencer_clock % sequencer_divider)==0) {
@@ -146,8 +148,11 @@ void sequencer_ratchet_step() {
 
     if (ratchet) {
       ratchet_step = (ratchet_step + 1) % RATCHET_NUM_STEPS;
+      note_duration_msec = gate_length_msec / RATCHET_NUM_STEPS;
+      sequencer_untrigger_note();
     }
     else {
+      note_duration_msec = gate_length_msec;
       ratchet_step = 0;
     }
 
@@ -162,9 +167,10 @@ void sequencer_advance() {
   if (!note_is_done_playing) {
     sequencer_untrigger_note();
   }
+
   if (!next_step_is_random && !random_flag) {
     current_step++;
-    current_step%=SEQUENCER_NUM_STEPS;
+    current_step %= SEQUENCER_NUM_STEPS;
   } else {
     random_flag = false;
     current_step = ((current_step + random(2, SEQUENCER_NUM_STEPS))%SEQUENCER_NUM_STEPS);
@@ -196,7 +202,7 @@ void sequencer_reset() {
 void sequencer_update() {
   tempo_handler.update();
 
-  if(!note_is_done_playing && millis() >= note_off_time && note_is_triggered) { 
+  if (!note_is_done_playing && millis() >= note_off_time && note_is_triggered) { 
     sequencer_untrigger_note();
   }
 }
@@ -205,7 +211,7 @@ static void sequencer_trigger_note() {
   note_is_triggered = true;
   note_is_done_playing = false;
   previous_note_on_time = millis();
-  note_off_time = previous_note_on_time + gate_length_msec;
+  note_off_time = previous_note_on_time + note_duration_msec;
 
   step_velocity[current_step] = INITIAL_VELOCITY;
 
@@ -216,9 +222,8 @@ static void sequencer_untrigger_note() {
   note_is_done_playing = true;
   note_off();
   note_is_triggered = false;
-  note_off_time = millis() + tempo_interval - gate_length_msec; // Set note off time to sometime in the future
+  note_off_time = millis() + tempo_interval - note_duration_msec; // Set note off time to sometime in the future
 }
-
 
 void keyboard_set_note(uint8_t note) {
   note_stack.NoteOn(note, INITIAL_VELOCITY);
