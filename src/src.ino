@@ -314,10 +314,11 @@ void keys_scan() {
 
 void pots_read() {
 
-  gate_length_msec = map(analogRead(POT_2),1023,0,10,1033);
+  int gate_pot_value = analogRead(POT_2);
+  gate_length_msec = 24 + map(gate_pot_value,1023,0,0,1023);
   
   synth.detune = muxAnalogRead(OSC_DETUNE_POT);
-  synth.attack = gate_length_msec;
+  synth.attack = MAX(map(gate_pot_value,1023,0,-1023,1023), 0);
   synth.release = muxAnalogRead(AMP_ENV_POT);
   synth.filter = muxAnalogRead(FILTER_FREQ_POT);
   synth.amplitude = muxAnalogRead(AMP_POT);

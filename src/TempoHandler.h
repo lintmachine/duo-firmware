@@ -107,31 +107,24 @@ class TempoHandler
         trigger();
       }
     }
+
     void update_sync() {
       static uint8_t _sync_pin_previous_value = 1;
+      static uint32_t _update_time = 0;
       uint8_t _sync_pin_value = digitalRead(SYNC_IN);
 
-      if(_sync_pin_previous_value && !_sync_pin_value) {
-        _tempo_interval = (micros() - _previous_sync_time) / TEMPO_SYNC_DIVIDER;
-        _clock = 0;
-        _previous_sync_time = micros();
-        _previous_clock_time = micros();
-        if (tAlignCallback != 0) {
-          tAlignCallback();
-        }
+      _update_time = micros();
+
+      if (_sync_pin_previous_value && !_sync_pin_value) {
+        _tempo_interval = (_update_time - _previous_sync_time);  // microseconds between sync input pulses
+        _previous_sync_time = _update_time;
+        _previous_clock_time = _update_time;
+
         if (tTempoCallback != 0) {
           trigger();
         }
-      } else {
-        if(micros() - _previous_clock_time > _tempo_interval) {
-          if(_clock < TEMPO_SYNC_DIVIDER) {
-            if (tTempoCallback != 0) {
-              _previous_clock_time = micros();
-              trigger();
-            }
-          }
-        }
-      }
+      } 
+
       _sync_pin_previous_value = _sync_pin_value;
     }
 
@@ -148,7 +141,7 @@ class TempoHandler
       }
       _tempo_interval = 5000000/tbpm;
       
-      if((micros() - _previous_clock_time) > _tempo_interval)  {
+      if ((micros() - _previous_clock_time) > _tempo_interval)  {
         _previous_clock_time = micros();
         trigger();
       }
@@ -161,10 +154,10 @@ class TempoHandler
       MIDI.sendRealTime(midi::Clock);
       usbMIDI.sendRealTime(midi::Clock);
 
-      if((_clock % _ppqn) == 0) {
+      if ((_clock % _ppqn) == 0) {
         _clock = 0;
       }
-      if((_clock % TEMPO_SYNC_DIVIDER) == 0) {
+      if ((_clock % TEMPO_SYNC_DIVIDER) == 0) {
         digitalWrite(SYNC_OUT_PIN, HIGH);
         syncStart = 0;
       } 

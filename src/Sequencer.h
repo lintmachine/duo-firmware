@@ -70,10 +70,10 @@ void sequencer_restart() {
 
 void sequencer_align_clock() {
   //round sequencer_clock to the nearest 12
-  if(sequencer_clock%12 > 6) {
-    sequencer_clock += 12-(sequencer_clock%12);
+  if (sequencer_clock % 12 > 3) {
+    sequencer_clock += 12 - (sequencer_clock % 12);
   } else {
-    sequencer_clock -= (sequencer_clock%12);
+    sequencer_clock -= (sequencer_clock % 12);
   }
 }
 
@@ -127,16 +127,16 @@ void sequencer_tick_clock() {
   }
 
   if (!tempo_handler.is_clock_source_internal()) {
-    int potvalue = analogRead(TEMPO_POT);
-    if (potvalue < 512) {
-      sequencer_divider /= 2;
-    } 
-    // else if(potvalue > 900) {
-    //   sequencer_divider *= 2;
-    // }
+    int potvalue = map(potRead(TEMPO_POT), 1023, 0, -2, 2);
+    if (potvalue > 0) {
+      sequencer_divider = sequencer_divider * (2 * potvalue);
+    }
+    else if(potvalue < 0) {
+      sequencer_divider = sequencer_divider / abs((2 * potvalue));
+    }
   }
 
-  if (sequencer_is_running && (sequencer_clock % sequencer_divider)==0) {
+  if (sequencer_is_running && (sequencer_clock % sequencer_divider) == 0) {
     sequencer_ratchet_step();
     sequencer_trigger_note();
   }
